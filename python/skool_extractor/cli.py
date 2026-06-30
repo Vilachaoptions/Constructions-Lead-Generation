@@ -143,8 +143,8 @@ def _run(settings: Settings) -> int:
                 fetcher.close()
                 return 0
 
-            root = nd.find_course_root(data, settings.course_id)
-            course = build_course(root, settings.community, settings.course_id,
+            wrapper = nd.extract_course_wrapper(data)
+            course = build_course(wrapper, settings.community, settings.course_id,
                                   settings.classroom_url)
             log.info("Parsed course '%s' with %d lessons", course.title,
                      course.lesson_count())

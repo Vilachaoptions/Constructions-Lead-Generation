@@ -17,6 +17,7 @@ _NOTE_KEYS = (
     "descriptionHtml",
     "contentHtml",
     "description",
+    "desc",
     "content",
     "body",
     "notes",
@@ -91,10 +92,61 @@ def _render_richtext(node: Any) -> str:
     return inner
 
 
+def _render_resources(metadata: dict) -> Optional[str]:
+    """Render a lesson's ``resources`` (links/files) into a Markdown list."""
+    raw = metadata.get("resources")
+    if not raw:
+        return None
+    items = raw
+    if isinstance(raw, str):
+        try:
+            items = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return None
+    if not isinstance(items, list) or not items:
+        return None
+
+    lines = ["**Resources**", ""]
+    found = False
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        title = it.get("title") or it.get("file_name") or it.get("name") or "resource"
+        link = it.get("link") or it.get("url")
+        if link:
+            lines.append(f"- [{title}]({link})")
+        elif it.get("file_name"):
+            lines.append(f"- {title} (file: {it.get('file_name')})")
+        else:
+            lines.append(f"- {title}")
+        found = True
+    return "\n".join(lines) if found else None
+
+
+def _description_markdown(raw) -> tuple[Optional[str], Optional[str]]:
+    """Convert a description field (HTML / rich-text / plain) to ``(html, md)``."""
+    if isinstance(raw, str) and raw.lstrip().startswith(("[", "{")):
+        try:
+            md = _render_richtext(json.loads(raw)).strip()
+            if md:
+                return raw, md
+        except (json.JSONDecodeError, ValueError):
+            pass
+    if isinstance(raw, (list, dict)):
+        md = _render_richtext(raw).strip()
+        return None, (md or None)
+    if isinstance(raw, str):
+        if _looks_like_html(raw):
+            return raw, html_to_markdown(raw)
+        return None, (raw.strip() or None)
+    return None, None
+
+
 def extract_notes(lesson_raw: Optional[dict]) -> tuple[Optional[str], Optional[str]]:
     """Return ``(notes_html, notes_markdown)`` for a lesson's raw JSON node.
 
-    Either element may be None if the lesson has no notes.
+    Combines the lesson's text description (if any) with a rendered list of its
+    attached resources. Either element may be None if the lesson has neither.
     """
     if not isinstance(lesson_raw, dict):
         return None, None
@@ -102,27 +154,9 @@ def extract_notes(lesson_raw: Optional[dict]) -> tuple[Optional[str], Optional[s
     if not isinstance(metadata, dict):
         return None, None
 
-    raw = _raw_notes_field(metadata)
-    if raw is None:
-        return None, None
+    desc_html, desc_md = _description_markdown(_raw_notes_field(metadata))
+    resources_md = _render_resources(metadata)
 
-    # Structured rich-text stored as a JSON string?
-    if isinstance(raw, str) and raw.lstrip().startswith(("[", "{")):
-        try:
-            parsed = json.loads(raw)
-            md = _render_richtext(parsed).strip()
-            if md:
-                return raw, md
-        except (json.JSONDecodeError, ValueError):
-            pass
-
-    if isinstance(raw, (list, dict)):
-        md = _render_richtext(raw).strip()
-        return None, (md or None)
-
-    if isinstance(raw, str):
-        if _looks_like_html(raw):
-            return raw, html_to_markdown(raw)
-        return None, raw.strip() or None
-
-    return None, None
+    parts = [p for p in (desc_md, resources_md) if p]
+    notes_md = "\n\n".join(parts) if parts else None
+    return desc_html, notes_md

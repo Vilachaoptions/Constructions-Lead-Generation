@@ -11,24 +11,22 @@ def _html():
 
 def test_extract_next_data():
     data = nd.extract_next_data(_html())
-    assert data["props"]["pageProps"]["course"]["id"] == "course-1"
+    assert "props" in data and "pageProps" in data["props"]
 
 
-def test_find_course_root_by_id():
+def test_extract_course_wrapper():
     data = nd.extract_next_data(_html())
-    root = nd.find_course_root(data, "course-1")
-    assert root["id"] == "course-1"
-    assert len(root["children"]) == 2
+    wrapper = nd.extract_course_wrapper(data)
+    assert wrapper["course"]["id"] == "course-1"
+    assert wrapper["course"]["unitType"] == "course"
+    assert len(wrapper["children"]) == 2
 
 
-def test_find_course_root_without_id_picks_largest():
-    data = nd.extract_next_data(_html())
-    root = nd.find_course_root(data, None)
-    assert root["id"] == "course-1"
-
-
-def test_walk_finds_all_course_nodes():
-    data = nd.extract_next_data(_html())
-    nodes = list(nd.walk(data, nd._looks_like_course_node))
-    ids = {n["id"] for n in nodes}
-    assert {"course-1", "mod-1", "mod-2", "lesson-1", "lesson-2", "lesson-3"} <= ids
+def test_extract_course_wrapper_fallback_by_unittype():
+    # Even if not at the canonical path, a course-unitType wrapper is found.
+    data = {"props": {"pageProps": {"other": {
+        "course": {"id": "c9", "unitType": "course", "metadata": {"title": "X"}},
+        "children": [],
+    }}}}
+    wrapper = nd.extract_course_wrapper(data)
+    assert wrapper["course"]["id"] == "c9"

@@ -7,47 +7,58 @@
 {
   "props": {
     "pageProps": {
+      "selectedModule": "lesson-1",
+      "video": null,
       "course": {
-        "id": "course-1",
-        "name": "intro-course",
-        "metadata": {"title": "Intro Course"},
+        "course": {
+          "id": "course-1",
+          "name": "a04b26c9",
+          "unitType": "course",
+          "metadata": {"title": "Intro Course", "numModules": 3, "desc": "A test course"}
+        },
         "children": [
           {
-            "id": "mod-1",
-            "name": "getting-started",
-            "metadata": {"title": "Getting Started", "order": 1},
+            "course": {
+              "id": "lesson-1",
+              "name": "l1",
+              "unitType": "module",
+              "metadata": {
+                "title": "Welcome",
+                "description": "<p>Hello <strong>world</strong>. See <a href=\"https://x.test\">link</a>.</p>",
+                "videoLink": "https://www.youtube.com/watch?v=abcdefghijk"
+              }
+            }
+          },
+          {
+            "course": {
+              "id": "set-1",
+              "name": "s1",
+              "unitType": "set",
+              "metadata": {"title": "Advanced"}
+            },
             "children": [
               {
-                "id": "lesson-1",
-                "metadata": {
-                  "title": "Welcome",
-                  "order": 1,
-                  "description": "<p>Hello <strong>world</strong>. See <a href=\"https://x.test\">link</a>.</p>",
-                  "videoLink": "https://www.youtube.com/watch?v=abcdefghijk"
+                "course": {
+                  "id": "lesson-2",
+                  "name": "l2",
+                  "unitType": "module",
+                  "metadata": {
+                    "title": "Setup",
+                    "description": "Plain text notes here.",
+                    "videoLinks": "[\"https://vimeo.com/123456789\"]"
+                  }
                 }
               },
               {
-                "id": "lesson-2",
-                "metadata": {
-                  "title": "Setup",
-                  "order": 2,
-                  "description": "Plain text notes here.",
-                  "videoLinks": "[\"https://vimeo.com/123456789\"]"
-                }
-              }
-            ]
-          },
-          {
-            "id": "mod-2",
-            "metadata": {"title": "Advanced", "order": 2},
-            "children": [
-              {
-                "id": "lesson-3",
-                "metadata": {
-                  "title": "Native Video",
-                  "order": 1,
-                  "description": "<p>No captions here.</p>",
-                  "videoLink": "https://stream.mux.com/abc123.m3u8"
+                "course": {
+                  "id": "lesson-3",
+                  "name": "l3",
+                  "unitType": "module",
+                  "metadata": {
+                    "title": "Native Video",
+                    "videoLink": "https://www.loom.com/share/abc123def456",
+                    "resources": "[{\"title\":\"Template\",\"link\":\"https://ex.com/t\"}]"
+                  }
                 }
               }
             ]
