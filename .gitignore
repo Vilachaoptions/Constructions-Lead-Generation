@@ -18,8 +18,8 @@ npm-debug.log*
 .env
 .skool_session/
 
-# Generated output
-output/
+# Generated output (repo-root only — do NOT match python/skool_extractor/output/)
+/output/
 
 # OS
 .DS_Store
