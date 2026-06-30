@@ -233,6 +233,52 @@ def _append_resource_links(notes_md, resources: list[dict]):
     return f"{notes_md}\n\n{block}" if notes_md else block
 
 
+def run_probe(args) -> int:
+    """Fetch one lesson with the saved session and dump download-button candidates."""
+    from playwright.sync_api import sync_playwright
+
+    log = setup_logging()
+    session_dir = Path(args.session_dir).expanduser().resolve()
+    out_dir = Path(args.output_dir).expanduser().resolve()
+    state_path = session_dir / "storage_state.json"
+    if not state_path.exists():
+        log.error("No saved session at %s. Run `webcourse discover <url>` first.", state_path)
+        return 1
+    host = urlparse(args.url).netloc or "site"
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        context = browser.new_context(user_agent=_USER_AGENT, storage_state=str(state_path))
+        page = context.new_page()
+        page.goto(args.url, wait_until="networkidle", timeout=60000)
+        html = page.content()
+        dump = out_dir / f"_discovery__{host}"
+        dump.mkdir(parents=True, exist_ok=True)
+        (dump / "lesson_probe.html").write_text(html, encoding="utf-8")
+        context.close()
+        browser.close()
+
+    soup = BeautifulSoup(html, "lxml")
+    print("\n=== ANCHORS that look download-ish ===")
+    for a in soup.find_all("a", href=True):
+        href, txt = a["href"], a.get_text(" ", strip=True)
+        blob = (href + " " + txt + " " + " ".join(a.get("class") or [])).lower()
+        if _is_download(a) or any(k in blob for k in
+                                  ("download", "guide", "pdf", "sheet", "checklist",
+                                   "template", "access", "resource")):
+            print(repr(txt[:55]), "-> class=", a.get("class"), "->", href[:150])
+    print("\n=== BUTTONS ===")
+    for b in soup.find_all("button"):
+        attrs = {k: v for k, v in b.attrs.items()
+                 if k.startswith("data") or k in ("onclick", "href", "class", "id")}
+        print(repr(b.get_text(" ", strip=True)[:55]), "::", attrs)
+    print("\n=== elements with 'download' in class/id ===")
+    for el in soup.find_all(attrs={"class": re.compile("download|attachment|resource|file", re.I)})[:25]:
+        print(el.name, el.get("class"), "::", repr(el.get_text(" ", strip=True)[:60]))
+    print(f"\nFull lesson HTML -> {dump / 'lesson_probe.html'}")
+    return 0
+
+
 def run_kajabi(args) -> int:
     from playwright.sync_api import sync_playwright
 

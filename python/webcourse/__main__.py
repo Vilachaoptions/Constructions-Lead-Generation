@@ -39,6 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Also download attached files (PDFs, sheets, guides) per lesson.")
     k.add_argument("--only", metavar="POST_ID")
     k.add_argument("--verbose", "-v", action="store_true")
+
+    pr = sub.add_parser(
+        "probe", help="Dump a lesson page's download-button candidates (diagnostic).")
+    pr.add_argument("url", help="A lesson URL that has a download button.")
+    pr.add_argument("--session-dir", default="./.webcourse_session")
+    pr.add_argument("--output-dir", default="./output")
     return p
 
 
@@ -50,6 +56,9 @@ def main(argv=None) -> int:
     if args.command == "kajabi":
         from .kajabi import run_kajabi
         return run_kajabi(args)
+    if args.command == "probe":
+        from .kajabi import run_probe
+        return run_probe(args)
     return 1
 
 
