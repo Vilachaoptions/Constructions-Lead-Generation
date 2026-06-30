@@ -44,6 +44,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--keep-audio", action="store_true")
     p.add_argument("--check-env", action="store_true",
                    help="Validate environment + binaries and exit.")
+    p.add_argument("--debug-structure", action="store_true",
+                   help="Dump the page's __NEXT_DATA__ shape and exit (for diagnosing parsing).")
     p.add_argument("--verbose", "-v", action="store_true")
     p.add_argument("--version", action="version", version=f"skool-extractor {__version__}")
     return p
@@ -125,6 +127,19 @@ def _run(settings: Settings) -> int:
             html = fetcher.fetch_classroom(settings.classroom_url)
 
             data = nd.extract_next_data(html)
+
+            if settings.debug_structure:
+                from . import debug
+                course_dir = settings.output_dir / f"{settings.community}__{settings.course_id}"
+                dump_path = course_dir / "_debug_next_data.json"
+                debug.dump_raw(data, dump_path)
+                report = debug.summarize(data)
+                log.info("Wrote raw __NEXT_DATA__ to %s", dump_path)
+                print(report)
+                log.info("Debug structure complete. Paste the report above back to continue.")
+                fetcher.close()
+                return 0
+
             root = nd.find_course_root(data, settings.course_id)
             course = build_course(root, settings.community, settings.course_id,
                                   settings.classroom_url)

@@ -50,6 +50,7 @@ class Settings:
 
     headful: bool = False
     keep_audio: bool = False
+    debug_structure: bool = False
 
     # politeness
     min_delay: float = 1.0
@@ -126,6 +127,7 @@ def build_settings(args, env: Optional[dict] = None) -> Settings:
         only_module=args.module,
         headful=args.headful,
         keep_audio=args.keep_audio,
+        debug_structure=getattr(args, "debug_structure", False),
         skool_email=env.get("SKOOL_EMAIL"),
         skool_password=env.get("SKOOL_PASSWORD"),
         openai_api_key=env.get("OPENAI_API_KEY"),
