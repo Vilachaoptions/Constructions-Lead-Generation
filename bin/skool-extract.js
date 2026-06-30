@@ -47,6 +47,8 @@ export function renderEvent(evt) {
       return `    ↳ ${evt.status}` + (evt.transcript ? ` · transcript: ${evt.transcript}` : "");
     case "lesson_error":
       return `    ✗ error: ${evt.error}`;
+    case "master_written":
+      return `📄 Master document: ${evt.path}`;
     case "run_complete":
       return `\n✓ Complete — ${evt.done} extracted, ${evt.skipped} skipped, ${evt.errors} errors`;
     default:

@@ -42,6 +42,20 @@ def test_timestamps_rendering(tmp_path: Path):
     assert "**[00:00]** hi there" in path.read_text()
 
 
+def test_write_master_combines_lessons(tmp_path: Path):
+    course, lesson = _course_with_lesson()
+    markdown_writer.write_lesson(tmp_path, course, lesson)
+    master = markdown_writer.write_master(tmp_path, course)
+    assert master.exists()
+    text = master.read_text()
+    assert master.name.endswith("-MASTER.md")
+    assert "# Course — Full Course" in text
+    assert "## Contents" in text
+    assert "Welcome" in text          # appears in TOC + body
+    assert "hi there" in text         # the lesson transcript is included
+    assert "---" in text              # separator between lessons
+
+
 def test_state_skip_roundtrip(tmp_path: Path):
     from skool_extractor.models import STATUS_DONE
     course, lesson = _course_with_lesson()

@@ -101,3 +101,65 @@ def write_lesson(output_root: Path, course: Course, lesson: Lesson,
 
     lesson.markdown_path = str(path.relative_to(base))
     return path
+
+
+def _strip_front_matter(text: str) -> str:
+    """Remove a leading YAML front-matter block (--- ... ---) from a lesson file."""
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            nl = text.find("\n", end + 1)
+            return text[nl + 1:].lstrip("\n") if nl != -1 else ""
+    return text
+
+
+def write_master(output_root: Path, course: Course) -> Path:
+    """Write a single master document combining every lesson, in course order.
+
+    Built from the per-lesson Markdown files already on disk, so it works even
+    on resumed runs where lessons were skipped. Includes a table of contents and
+    each lesson's notes + transcript, grouped by section.
+    """
+    base = course_dir(output_root, course)
+    base.mkdir(parents=True, exist_ok=True)
+    lessons = list(course.iter_lessons())
+
+    lines: list[str] = [
+        f"# {course.title} — Full Course",
+        "",
+        f"_{len(lessons)} lessons · community: {course.community}_",
+        "",
+        "## Contents",
+        "",
+    ]
+    for i, lesson in enumerate(lessons, start=1):
+        crumb = " / ".join(lesson.module_path)
+        prefix = f"{crumb} / " if crumb else ""
+        lines.append(f"{i}. {prefix}{lesson.title}")
+    lines.append("")
+
+    for i, lesson in enumerate(lessons, start=1):
+        path = _module_dir(base, lesson) / lesson_filename(lesson)
+        crumb = " / ".join(lesson.module_path) or "(top level)"
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append(f"> **Lesson {i}/{len(lessons)}** · {crumb}")
+        lines.append("")
+        if path.exists():
+            lines.append(_strip_front_matter(path.read_text(encoding="utf-8")).rstrip())
+        else:
+            lines.append(f"# {lesson.title}\n\n_Not extracted._")
+        lines.append("")
+
+    content = "\n".join(lines).rstrip() + "\n"
+    dest = base / f"00-{slugify(course.title)}-MASTER.md"
+    fd, tmp = tempfile.mkstemp(dir=str(base), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        os.replace(tmp, dest)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+    return dest

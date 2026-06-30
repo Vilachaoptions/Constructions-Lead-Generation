@@ -213,6 +213,10 @@ def _run(settings: Settings) -> int:
             fetcher.close()
             manifest_mod.write_manifest(settings.output_dir, course, settings, started)
 
+            master_path = markdown_writer.write_master(settings.output_dir, course)
+            log.info("Wrote master document: %s", master_path)
+            emit("master_written", path=str(master_path))
+
             done = sum(1 for l in lessons if l.status == STATUS_DONE)
             skipped = sum(1 for l in lessons if l.status == STATUS_SKIPPED)
             emit("run_complete", total=total, done=done, skipped=skipped, errors=errors)
