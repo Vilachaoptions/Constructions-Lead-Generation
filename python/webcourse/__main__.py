@@ -20,6 +20,23 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("url", help="A course or lesson URL on the site.")
     d.add_argument("--session-dir", default="./.webcourse_session")
     d.add_argument("--output-dir", default="./output")
+
+    k = sub.add_parser(
+        "kajabi",
+        help="Extract a Kajabi course (notes + Wistia transcripts) using the saved session.",
+    )
+    k.add_argument("url", help="The Kajabi product/course URL.")
+    k.add_argument("--session-dir", default="./.webcourse_session")
+    k.add_argument("--output-dir", default="./output")
+    k.add_argument("--transcription-backend", default="faster-whisper",
+                   choices=["faster-whisper", "openai", "none"])
+    k.add_argument("--whisper-model", default="base")
+    k.add_argument("--no-captions", action="store_true")
+    k.add_argument("--no-transcripts", action="store_true")
+    k.add_argument("--timestamps", action="store_true")
+    k.add_argument("--force", action="store_true")
+    k.add_argument("--only", metavar="POST_ID")
+    k.add_argument("--verbose", "-v", action="store_true")
     return p
 
 
@@ -28,6 +45,9 @@ def main(argv=None) -> int:
     if args.command == "discover":
         from .discover import run_discover
         return run_discover(args)
+    if args.command == "kajabi":
+        from .kajabi import run_kajabi
+        return run_kajabi(args)
     return 1
 
 

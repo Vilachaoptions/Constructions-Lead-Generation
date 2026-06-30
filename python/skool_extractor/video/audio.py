@@ -41,12 +41,6 @@ def download_audio(video: VideoRef, media_dir: Path,
         "outtmpl": outtmpl,
         "quiet": True,
         "no_warnings": True,
-        # Skool-native (Mux) playback URLs carry a domain restriction; Mux checks
-        # the Referer/Origin against the allowed domain (skool.com).
-        "http_headers": {
-            "Referer": "https://www.skool.com/",
-            "Origin": "https://www.skool.com",
-        },
         "postprocessors": [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": "m4a",
@@ -55,6 +49,12 @@ def download_audio(video: VideoRef, media_dir: Path,
     }
     if cookie_file:
         opts["cookiefile"] = str(cookie_file)
+    # Skool-native (Mux) playback URLs carry a domain restriction; Mux checks the
+    # Referer/Origin against the allowed domain (skool.com). Other hosts (Wistia,
+    # YouTube, …) must NOT get a skool referer.
+    if "mux.com" in video.url:
+        opts["http_headers"] = {"Referer": "https://www.skool.com/",
+                                "Origin": "https://www.skool.com"}
 
     log = get_logger()
     log.info("Downloading audio (%s): %s", video.provider, video.url)
