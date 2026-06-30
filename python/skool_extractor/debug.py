@@ -71,6 +71,43 @@ def summarize(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _trim(obj: Any, depth: int, max_str: int, max_list: int) -> Any:
+    """Return a depth/size-limited copy of ``obj`` for safe, compact previewing."""
+    if depth <= 0:
+        if isinstance(obj, dict):
+            return {"<keys>": sorted(map(str, obj.keys()))}
+        if isinstance(obj, list):
+            return f"<list len={len(obj)}>"
+        return obj
+    if isinstance(obj, dict):
+        return {k: _trim(v, depth - 1, max_str, max_list) for k, v in obj.items()}
+    if isinstance(obj, list):
+        trimmed = [_trim(x, depth - 1, max_str, max_list) for x in obj[:max_list]]
+        if len(obj) > max_list:
+            trimmed.append(f"<+{len(obj) - max_list} more, total {len(obj)}>")
+        return trimmed
+    if isinstance(obj, str) and len(obj) > max_str:
+        return obj[:max_str] + f"…<+{len(obj) - max_str} chars>"
+    return obj
+
+
+def preview_keys(data: dict[str, Any], keys: list[str],
+                 depth: int = 6, max_str: int = 120, max_list: int = 3) -> str:
+    """Print a trimmed JSON skeleton of selected props.pageProps.<key> objects."""
+    pp = data.get("props", {})
+    pp = pp.get("pageProps", {}) if isinstance(pp, dict) else {}
+    out: list[str] = []
+    for key in keys:
+        out.append(f"===== props.pageProps.{key} =====")
+        if key not in pp:
+            out.append("  <absent>")
+            continue
+        trimmed = _trim(pp[key], depth, max_str, max_list)
+        out.append(json.dumps(trimmed, indent=2, ensure_ascii=False))
+        out.append("")
+    return "\n".join(out)
+
+
 def dump_raw(data: dict[str, Any], dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))

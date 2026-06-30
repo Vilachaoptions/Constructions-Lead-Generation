@@ -134,8 +134,11 @@ def _run(settings: Settings) -> int:
                 dump_path = course_dir / "_debug_next_data.json"
                 debug.dump_raw(data, dump_path)
                 report = debug.summarize(data)
+                preview = debug.preview_keys(
+                    data, ["course", "selectedModule", "video"])
                 log.info("Wrote raw __NEXT_DATA__ to %s", dump_path)
                 print(report)
+                print(preview)
                 log.info("Debug structure complete. Paste the report above back to continue.")
                 fetcher.close()
                 return 0
