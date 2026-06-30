@@ -1,0 +1,19 @@
+{
+  "name": "skool-classroom-extractor",
+  "version": "0.1.0",
+  "description": "Thin Node.js CLI wrapper around the Python Skool classroom extractor core.",
+  "type": "module",
+  "bin": {
+    "skool-extract": "bin/skool-extract.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "extract": "node bin/skool-extract.js",
+    "check-env": "node bin/skool-extract.js --check-env",
+    "test": "node --test \"tests/node/*.test.js\""
+  },
+  "dependencies": {},
+  "license": "MIT"
+}

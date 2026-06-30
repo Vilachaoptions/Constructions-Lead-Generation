@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Secrets & sessions
+.env
+.skool_session/
+
+# Generated output
+output/
+
+# OS
+.DS_Store

@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head><title>Sample Classroom</title></head>
+<body>
+<div id="__next"></div>
+<script id="__NEXT_DATA__" type="application/json">
+{
+  "props": {
+    "pageProps": {
+      "course": {
+        "id": "course-1",
+        "name": "intro-course",
+        "metadata": {"title": "Intro Course"},
+        "children": [
+          {
+            "id": "mod-1",
+            "name": "getting-started",
+            "metadata": {"title": "Getting Started", "order": 1},
+            "children": [
+              {
+                "id": "lesson-1",
+                "metadata": {
+                  "title": "Welcome",
+                  "order": 1,
+                  "description": "<p>Hello <strong>world</strong>. See <a href=\"https://x.test\">link</a>.</p>",
+                  "videoLink": "https://www.youtube.com/watch?v=abcdefghijk"
+                }
+              },
+              {
+                "id": "lesson-2",
+                "metadata": {
+                  "title": "Setup",
+                  "order": 2,
+                  "description": "Plain text notes here.",
+                  "videoLinks": "[\"https://vimeo.com/123456789\"]"
+                }
+              }
+            ]
+          },
+          {
+            "id": "mod-2",
+            "metadata": {"title": "Advanced", "order": 2},
+            "children": [
+              {
+                "id": "lesson-3",
+                "metadata": {
+                  "title": "Native Video",
+                  "order": 1,
+                  "description": "<p>No captions here.</p>",
+                  "videoLink": "https://stream.mux.com/abc123.m3u8"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

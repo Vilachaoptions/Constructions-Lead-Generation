@@ -1,0 +1,16 @@
+# Skool Classroom Extractor — Python core runtime deps
+playwright>=1.44
+beautifulsoup4>=4.12
+lxml>=5.2
+markdownify>=0.13
+yt-dlp>=2024.5.27
+youtube-transcript-api>=0.6.2
+webvtt-py>=0.5.1
+faster-whisper>=1.0.0
+openai>=1.30
+python-dotenv>=1.0
+tenacity>=8.3
+rich>=13.7
+
+# Dev / test
+pytest>=8.0
