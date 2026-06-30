@@ -49,31 +49,58 @@ _FILE_EXT_RE = re.compile(
 )
 
 
-def _is_download(a) -> bool:
+_DL_EMOJI = ("👈", "⬇", "⬇️", "📥", "📄", "📎", "🔗")
+_NAV_RE = re.compile(r"/categories/\d+(?:/posts/\d+)?/?$")
+
+
+def _is_direct_file(url: str) -> bool:
+    """True if the URL points at a real downloadable file (vs. a web page)."""
+    host = urlparse(url).netloc.lower()
+    if any(h in host for h in ("kajabi-cdn.com", "kajabi.com", "amazonaws.com",
+                               "cloudfront.net")):
+        return True
+    if _FILE_EXT_RE.search(url):
+        return True
+    if "drive.google.com" in host and "/file/d/" in url:
+        return True  # a single Drive file (downloadable), not a folder
+    return False
+
+
+def _is_resource(a) -> bool:
+    """A downloadable/attached resource link in the lesson body (not the sidebar)."""
     href = a.get("href", "")
     if not href or href.startswith(("#", "javascript:", "mailto:")):
         return False
-    if a.has_attr("download"):
+    classes = " ".join(a.get("class") or [])
+    if "product-outline" in classes:      # sidebar curriculum link
+        return False
+    if _NAV_RE.search(href):              # in-course navigation
+        return False
+    host = urlparse(href).netloc.lower()
+    raw = a.get_text() or ""
+    txt = raw.lower()
+    if a.has_attr("download") or _is_direct_file(href):
         return True
-    if _FILE_EXT_RE.search(href):
+    if any(h in host for h in ("drive.google.com", "docs.google.com")):
         return True
-    return any(s in href for s in (
-        "kajabi-cdn.com", "amazonaws.com", "/downloads/", "/attachments/",
-        "/download", "cloudfront.net"))
+    if "download" in txt or any(e in raw for e in _DL_EMOJI):
+        return True
+    return False
 
 
 def _find_resources(soup, base_url: str) -> list[dict]:
-    """Collect downloadable file links (PDFs, sheets, guides) from a lesson."""
+    """Collect resource links (files, Drive/Docs, 'download' links) from a lesson."""
     out, seen = [], set()
     for a in soup.find_all("a", href=True):
-        if not _is_download(a):
+        if not _is_resource(a):
             continue
         url = urljoin(base_url, a["href"])
         if url in seen:
             continue
         seen.add(url)
-        title = a.get_text(" ", strip=True) or a.get("download") or "download"
-        out.append({"title": re.sub(r"\s+", " ", title)[:120], "url": url})
+        title = a.get_text(" ", strip=True) or a.get("download") or url
+        out.append({"title": re.sub(r"\s+", " ", title)[:120], "url": url,
+                    "is_file": _is_direct_file(url)})
     return out
 
 
@@ -191,16 +218,29 @@ def _safe_filename(name: str) -> str:
     return name[:120] or "download"
 
 
+def _download_url(url: str) -> str:
+    """Rewrite a viewer URL to its direct-download form where possible."""
+    m = re.search(r"drive\.google\.com/file/d/([^/]+)", url)
+    if m:
+        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
+    return url
+
+
 def _download_resources(context, resources: list[dict], dest_dir: Path,
                         log) -> list[dict]:
-    """Download each resource into ``dest_dir`` using the authenticated session.
+    """Download direct-file resources into ``dest_dir`` using the session.
 
-    Returns the list with a local ``filename`` added for those that downloaded.
+    Only resources flagged ``is_file`` are fetched as binaries; Google
+    Docs/Sheets and Drive folders stay as links. Returns the list with a local
+    ``filename`` added for those that downloaded.
     """
+    files = [r for r in resources if r.get("is_file")]
+    if not files:
+        return resources
     dest_dir.mkdir(parents=True, exist_ok=True)
-    for res in resources:
+    for res in files:
         try:
-            resp = context.request.get(res["url"], timeout=120000)
+            resp = context.request.get(_download_url(res["url"]), timeout=120000)
             if not resp.ok:
                 log.warning("Download failed (%s): %s", resp.status, res["url"])
                 continue
@@ -263,7 +303,7 @@ def run_probe(args) -> int:
     for a in soup.find_all("a", href=True):
         href, txt = a["href"], a.get_text(" ", strip=True)
         blob = (href + " " + txt + " " + " ".join(a.get("class") or [])).lower()
-        if _is_download(a) or any(k in blob for k in
+        if _is_resource(a) or any(k in blob for k in
                                   ("download", "guide", "pdf", "sheet", "checklist",
                                    "template", "access", "resource")):
             print(repr(txt[:55]), "-> class=", a.get("class"), "->", href[:150])
