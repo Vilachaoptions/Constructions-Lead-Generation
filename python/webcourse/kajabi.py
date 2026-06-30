@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
@@ -43,6 +43,38 @@ _WISTIA_RE = re.compile(
     r"wistia_async_([a-z0-9]+)|wistia\.(?:com|net)/(?:embed/)?(?:iframe|medias)/([a-z0-9]+)",
     re.IGNORECASE,
 )
+_FILE_EXT_RE = re.compile(
+    r"\.(pdf|zip|xlsx?|csv|docx?|pptx?|txt|json|png|jpe?g|gif|mp3|mp4|mov|key|numbers|pages)(\?|#|$)",
+    re.IGNORECASE,
+)
+
+
+def _is_download(a) -> bool:
+    href = a.get("href", "")
+    if not href or href.startswith(("#", "javascript:", "mailto:")):
+        return False
+    if a.has_attr("download"):
+        return True
+    if _FILE_EXT_RE.search(href):
+        return True
+    return any(s in href for s in (
+        "kajabi-cdn.com", "amazonaws.com", "/downloads/", "/attachments/",
+        "/download", "cloudfront.net"))
+
+
+def _find_resources(soup, base_url: str) -> list[dict]:
+    """Collect downloadable file links (PDFs, sheets, guides) from a lesson."""
+    out, seen = [], set()
+    for a in soup.find_all("a", href=True):
+        if not _is_download(a):
+            continue
+        url = urljoin(base_url, a["href"])
+        if url in seen:
+            continue
+        seen.add(url)
+        title = a.get_text(" ", strip=True) or a.get("download") or "download"
+        out.append({"title": re.sub(r"\s+", " ", title)[:120], "url": url})
+    return out
 
 
 def _now_iso() -> str:
@@ -113,8 +145,8 @@ def build_course(html: str, host: str, slug: str, url: str) -> Course:
     return course
 
 
-def parse_lesson(html: str) -> tuple[str | None, str | None, str | None]:
-    """Return ``(title, notes_markdown, wistia_id)`` for a lesson page."""
+def parse_lesson(html: str, base_url: str = "") -> tuple:
+    """Return ``(title, notes_markdown, wistia_id, resources)`` for a lesson page."""
     soup = BeautifulSoup(html, "lxml")
     title_el = soup.find(class_="post-body-title")
     title = title_el.get_text(strip=True) if title_el else None
@@ -148,7 +180,57 @@ def parse_lesson(html: str) -> tuple[str | None, str | None, str | None]:
     m = _WISTIA_RE.search(html)
     if m:
         wid = m.group(1) or m.group(2)
-    return title, notes_md, wid
+
+    resources = _find_resources(soup, base_url)
+    return title, notes_md, wid, resources
+
+
+def _safe_filename(name: str) -> str:
+    name = unquote(name).strip().replace("/", "-")
+    name = re.sub(r'[<>:"\\|?*\x00-\x1f]', "", name)
+    return name[:120] or "download"
+
+
+def _download_resources(context, resources: list[dict], dest_dir: Path,
+                        log) -> list[dict]:
+    """Download each resource into ``dest_dir`` using the authenticated session.
+
+    Returns the list with a local ``filename`` added for those that downloaded.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for res in resources:
+        try:
+            resp = context.request.get(res["url"], timeout=120000)
+            if not resp.ok:
+                log.warning("Download failed (%s): %s", resp.status, res["url"])
+                continue
+            cd = resp.headers.get("content-disposition", "")
+            m = re.search(r'filename\*?=(?:UTF-8\'\')?"?([^";]+)"?', cd)
+            if m:
+                fname = _safe_filename(m.group(1))
+            else:
+                path_name = urlparse(res["url"]).path.rsplit("/", 1)[-1]
+                fname = _safe_filename(path_name) if "." in path_name \
+                    else _safe_filename(res["title"])
+            (dest_dir / fname).write_bytes(resp.body())
+            res["filename"] = fname
+            log.info("Downloaded resource: %s", fname)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Download error for %s: %s", res["url"], exc)
+    return resources
+
+
+def _append_resource_links(notes_md, resources: list[dict]):
+    lines = []
+    for r in resources:
+        if r.get("filename"):
+            lines.append(f"- [{r['title']}](_files/{r['filename']})")
+        else:
+            lines.append(f"- [{r['title']}]({r['url']})")
+    if not lines:
+        return notes_md
+    block = "**Downloads**\n\n" + "\n".join(lines)
+    return f"{notes_md}\n\n{block}" if notes_md else block
 
 
 def run_kajabi(args) -> int:
@@ -201,7 +283,13 @@ def run_kajabi(args) -> int:
                     continue
                 try:
                     page.goto(lesson.url, wait_until="networkidle", timeout=60000)
-                    _, notes_md, wid = parse_lesson(page.content())
+                    _, notes_md, wid, resources = parse_lesson(page.content(), lesson.url)
+                    if resources and getattr(args, "download_resources", False):
+                        base = markdown_writer.course_dir(settings.output_dir, course)
+                        files_dir = markdown_writer._module_dir(base, lesson) / "_files"
+                        _download_resources(context, resources, files_dir, log)
+                    if resources:
+                        notes_md = _append_resource_links(notes_md, resources)
                     lesson.notes_markdown = notes_md
                     if wid:
                         lesson.video = VideoRef(provider="wistia",

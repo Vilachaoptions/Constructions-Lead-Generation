@@ -35,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     k.add_argument("--no-transcripts", action="store_true")
     k.add_argument("--timestamps", action="store_true")
     k.add_argument("--force", action="store_true")
+    k.add_argument("--download-resources", action="store_true",
+                   help="Also download attached files (PDFs, sheets, guides) per lesson.")
     k.add_argument("--only", metavar="POST_ID")
     k.add_argument("--verbose", "-v", action="store_true")
     return p
