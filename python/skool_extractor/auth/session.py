@@ -7,6 +7,7 @@ the password anywhere on disk).
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -31,7 +32,14 @@ def launch_context(playwright, settings: Settings):
     both the context and the browser.
     """
     log = get_logger()
-    browser = playwright.chromium.launch(headless=not settings.headful)
+    launch_kwargs = {"headless": not settings.headful}
+    # Allow pointing at a system-provided Chromium (e.g. preinstalled in CI /
+    # sandboxes) instead of the pip-managed download.
+    exe = os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE")
+    if exe and os.path.exists(exe):
+        launch_kwargs["executable_path"] = exe
+        log.info("Using Chromium at %s", exe)
+    browser = playwright.chromium.launch(**launch_kwargs)
 
     state_path = storage_state_path(settings)
     kwargs = {"user_agent": _USER_AGENT}
