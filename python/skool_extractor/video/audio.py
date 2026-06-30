@@ -8,7 +8,9 @@ ffmpeg on PATH for audio extraction.
 from __future__ import annotations
 
 import glob
+import hashlib
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -29,7 +31,11 @@ def download_audio(video: VideoRef, media_dir: Path,
         raise AudioDownloadError("yt-dlp is not installed") from exc
 
     media_dir.mkdir(parents=True, exist_ok=True)
-    outtmpl = str(media_dir / "%(id)s.%(ext)s")
+    # Use a short, filesystem-safe name. For Mux/HLS the yt-dlp "id" is the whole
+    # signed URL (with a huge token), which overflows the 255-char filename limit.
+    safe_id = video.provider_id or hashlib.sha1(video.url.encode()).hexdigest()[:16]
+    safe_id = re.sub(r"[^A-Za-z0-9_-]", "_", safe_id)[:80]
+    outtmpl = str(media_dir / f"{safe_id}.%(ext)s")
     opts = {
         "format": "bestaudio/best",
         "outtmpl": outtmpl,
@@ -58,9 +64,8 @@ def download_audio(video: VideoRef, media_dir: Path,
     except Exception as exc:
         raise AudioDownloadError(f"yt-dlp failed for {video.url}: {exc}") from exc
 
-    vid_id = (info or {}).get("id", "")
-    matches = glob.glob(str(media_dir / f"{vid_id}.m4a")) or \
-        glob.glob(str(media_dir / f"{vid_id}.*"))
+    matches = glob.glob(str(media_dir / f"{safe_id}.m4a")) or \
+        glob.glob(str(media_dir / f"{safe_id}.*"))
     if not matches:
         # fall back to most recent file in the dir
         files = sorted(media_dir.glob("*"), key=os.path.getmtime, reverse=True)
