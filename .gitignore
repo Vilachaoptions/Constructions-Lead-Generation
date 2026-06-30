@@ -17,6 +17,7 @@ npm-debug.log*
 # Secrets & sessions
 .env
 .skool_session/
+.webcourse_session/
 
 # Generated output (repo-root only — do NOT match python/skool_extractor/output/)
 /output/

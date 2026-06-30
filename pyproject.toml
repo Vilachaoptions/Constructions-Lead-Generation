@@ -39,6 +39,7 @@ packages = [
     "skool_extractor.video",
     "skool_extractor.transcript",
     "skool_extractor.output",
+    "webcourse",
 ]
 
 [tool.pytest.ini_options]
