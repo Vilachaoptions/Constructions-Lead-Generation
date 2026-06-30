@@ -71,6 +71,10 @@ def _ytdlp_captions(video: VideoRef, cookie_file: Optional[Path]) -> Optional[Tr
             "quiet": True,
             "no_warnings": True,
             "ignoreerrors": True,
+            "http_headers": {
+                "Referer": "https://www.skool.com/",
+                "Origin": "https://www.skool.com",
+            },
         }
         if cookie_file:
             opts["cookiefile"] = str(cookie_file)
