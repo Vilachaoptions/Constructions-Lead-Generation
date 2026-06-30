@@ -38,7 +38,7 @@ scraping logic in Node, so Python stays the single source of truth.
 python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pip install -e .                     # installs the skool_extractor package + `skool-extractor` command
+pip install -e . --config-settings editable_mode=compat   # installs the package + `skool-extractor` command
 playwright install chromium
 
 # 2. System dependency: ffmpeg (required for audio extraction + Whisper)

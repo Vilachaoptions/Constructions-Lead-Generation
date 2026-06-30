@@ -31,9 +31,15 @@ skool-extractor = "skool_extractor.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "python"}
-
-[tool.setuptools.packages.find]
-where = ["python"]
+packages = [
+    "skool_extractor",
+    "skool_extractor.auth",
+    "skool_extractor.fetch",
+    "skool_extractor.parse",
+    "skool_extractor.video",
+    "skool_extractor.transcript",
+    "skool_extractor.output",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]
