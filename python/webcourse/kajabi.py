@@ -55,15 +55,26 @@ _NAV_RE = re.compile(r"/categories/\d+(?:/posts/\d+)?/?$")
 
 def _is_direct_file(url: str) -> bool:
     """True if the URL points at a real downloadable file (vs. a web page)."""
-    host = urlparse(url).netloc.lower()
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    path = parsed.path.lower()
     if any(h in host for h in ("kajabi-cdn.com", "kajabi.com", "amazonaws.com",
                                "cloudfront.net")):
+        return True
+    if "/courses/downloads/" in path:     # Kajabi-hosted file download endpoint
         return True
     if _FILE_EXT_RE.search(url):
         return True
     if "drive.google.com" in host and "/file/d/" in url:
         return True  # a single Drive file (downloadable), not a folder
     return False
+
+
+def _clean_resource_title(text: str) -> str:
+    """Strip Kajabi's inline SVG-icon labels from a resource link's text."""
+    text = text.replace("Created with Sketch.", " ")
+    text = re.sub(r"\bdownload icon\b", " ", text, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _is_resource(a) -> bool:
@@ -98,8 +109,9 @@ def _find_resources(soup, base_url: str) -> list[dict]:
         if url in seen:
             continue
         seen.add(url)
-        title = a.get_text(" ", strip=True) or a.get("download") or url
-        out.append({"title": re.sub(r"\s+", " ", title)[:120], "url": url,
+        raw = a.get_text(" ", strip=True) or a.get("download") or url
+        title = _clean_resource_title(raw) or url
+        out.append({"title": title[:120], "url": url,
                     "is_file": _is_direct_file(url)})
     return out
 
@@ -218,6 +230,17 @@ def _safe_filename(name: str) -> str:
     return name[:120] or "download"
 
 
+def _ensure_ext(fname: str, url_path: str) -> str:
+    """Give ``fname`` a real extension if Kajabi encoded it as a ``-pdf`` suffix."""
+    if "." in fname:
+        return fname
+    m = re.search(r"[-_](pdf|zip|xlsx?|csv|docx?|pptx?|txt|png|jpe?g|mp[34]|mov)$",
+                  url_path, re.IGNORECASE)
+    if m:
+        return f"{fname}.{m.group(1).lower()}"
+    return fname
+
+
 def _download_url(url: str) -> str:
     """Rewrite a viewer URL to its direct-download form where possible."""
     m = re.search(r"drive\.google\.com/file/d/([^/]+)", url)
@@ -250,8 +273,8 @@ def _download_resources(context, resources: list[dict], dest_dir: Path,
                 fname = _safe_filename(m.group(1))
             else:
                 path_name = urlparse(res["url"]).path.rsplit("/", 1)[-1]
-                fname = _safe_filename(path_name) if "." in path_name \
-                    else _safe_filename(res["title"])
+                base_name = path_name if "." in path_name else res["title"]
+                fname = _ensure_ext(_safe_filename(base_name), path_name)
             (dest_dir / fname).write_bytes(resp.body())
             res["filename"] = fname
             log.info("Downloaded resource: %s", fname)

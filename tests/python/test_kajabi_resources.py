@@ -2,7 +2,8 @@
 
 from bs4 import BeautifulSoup
 
-from webcourse.kajabi import _download_url, _find_resources, parse_lesson
+from webcourse.kajabi import (_download_url, _ensure_ext, _find_resources,
+                              parse_lesson)
 
 _HTML = """
 <div class="post-body">
@@ -41,6 +42,30 @@ def test_find_resources_classifies_files_and_links():
     assert by["https://drive.google.com/file/d/1ABCdef/view"]["is_file"] is True
     assert by["https://kajabi-cdn.com/foo/checklist.pdf"]["is_file"] is True
     assert by["https://example.com/file.zip"]["is_file"] is True
+
+
+def test_kajabi_native_download_button():
+    # The real shape: a <a class="downloads-link"> to /courses/downloads/<id>/<name>,
+    # with the SVG icon label baked into the link text.
+    html = (
+        '<div class="downloads dropdown">'
+        '<a class="downloads-link media" '
+        'href="https://www.definedigitalacademy.com/courses/downloads/2162346635/'
+        'updated_24_google_ads_ga4_conversion_set-up_guide-pdf">'
+        'GA4 Conversion Set Up Guide download icon Created with Sketch.</a></div>'
+    )
+    soup = BeautifulSoup(html, "lxml")
+    res = _find_resources(soup, "https://www.definedigitalacademy.com/x")
+    assert len(res) == 1
+    r = res[0]
+    assert r["is_file"] is True                       # binary download, not a link
+    assert r["title"] == "GA4 Conversion Set Up Guide"  # icon label stripped
+
+
+def test_ensure_ext_recovers_kajabi_pdf_suffix():
+    assert _ensure_ext("guide", "/courses/downloads/1/my_guide-pdf") == "guide.pdf"
+    assert _ensure_ext("already.pdf", "/x-pdf") == "already.pdf"
+    assert _ensure_ext("plain", "/no/ext/here") == "plain"
 
 
 def test_download_url_rewrites_drive_file():
