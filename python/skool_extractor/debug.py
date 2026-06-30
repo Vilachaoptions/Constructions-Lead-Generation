@@ -108,6 +108,34 @@ def preview_keys(data: dict[str, Any], keys: list[str],
     return "\n".join(out)
 
 
+def _iter_nodes(obj: Any):
+    if isinstance(obj, dict):
+        yield obj
+        for v in obj.values():
+            yield from _iter_nodes(v)
+    elif isinstance(obj, list):
+        for x in obj:
+            yield from _iter_nodes(x)
+
+
+def preview_node_by_id(data: dict[str, Any], node_id: str,
+                       depth: int = 6, max_str: int = 300, max_list: int = 5) -> str:
+    """Find and preview every node whose id matches ``node_id`` (with metadata)."""
+    out: list[str] = []
+    seen = 0
+    for node in _iter_nodes(data):
+        if (isinstance(node, dict) and str(node.get("id")) == str(node_id)
+                and isinstance(node.get("metadata"), dict)):
+            seen += 1
+            out.append(f"--- node match #{seen} (keys={sorted(map(str, node.keys()))}) ---")
+            out.append(json.dumps(_trim(node, depth, max_str, max_list),
+                                  indent=2, ensure_ascii=False))
+            out.append("")
+    if not seen:
+        out.append(f"<no node with id={node_id} found>")
+    return "\n".join(out)
+
+
 def dump_raw(data: dict[str, Any], dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(data, indent=2, ensure_ascii=False))

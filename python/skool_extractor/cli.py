@@ -139,6 +139,19 @@ def _run(settings: Settings) -> int:
                 log.info("Wrote raw __NEXT_DATA__ to %s", dump_path)
                 print(report)
                 print(preview)
+
+                # If a specific lesson is requested, fetch its page and show
+                # where that lesson's video/notes actually live.
+                if settings.only_lesson:
+                    lesson_html = fetcher.fetch_lesson(settings.classroom_url,
+                                                       settings.only_lesson)
+                    ldata = nd.extract_next_data(lesson_html)
+                    debug.dump_raw(ldata, course_dir / f"_debug_lesson_{settings.only_lesson}.json")
+                    print(f"\n########## LESSON PAGE {settings.only_lesson} ##########")
+                    print(debug.preview_keys(ldata, ["video", "selectedModule"],
+                                             depth=7, max_str=300))
+                    print("########## matching node(s) on lesson page ##########")
+                    print(debug.preview_node_by_id(ldata, settings.only_lesson))
                 log.info("Debug structure complete. Paste the report above back to continue.")
                 fetcher.close()
                 return 0
