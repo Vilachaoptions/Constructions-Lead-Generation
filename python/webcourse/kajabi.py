@@ -135,8 +135,14 @@ def parse_lesson(html: str) -> tuple[str | None, str | None, str | None]:
                 ".mark-complete, .post-completion"):
             junk.decompose()
         notes_md = html_to_markdown(str(body)) or None
-        if notes_md and len(notes_md) < 3:
-            notes_md = None
+        if notes_md:
+            # Drop lines that are only separators (---, ***, ___) and treat a
+            # body with no actual words as empty (common on video-only lessons).
+            cleaned = "\n".join(
+                ln for ln in notes_md.splitlines()
+                if not re.fullmatch(r"\s*[-*_]{2,}\s*", ln)
+            ).strip()
+            notes_md = cleaned if re.search(r"[A-Za-z0-9]", cleaned) else None
 
     wid = None
     m = _WISTIA_RE.search(html)
