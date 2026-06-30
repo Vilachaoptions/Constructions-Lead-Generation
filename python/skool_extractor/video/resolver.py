@@ -78,6 +78,29 @@ def _provider_id(provider: str, url: str) -> Optional[str]:
     return None
 
 
+def mux_from_pageprops(data: dict) -> Optional[VideoRef]:
+    """Build a Mux ``VideoRef`` from a lesson page's ``props.pageProps.video``.
+
+    Skool-native videos aren't in the lesson node (which only has ``videoId``);
+    the signed playback info lives in pageProps.video and is built into a Mux HLS
+    URL: ``https://stream.mux.com/<playbackId>.m3u8?token=<playbackToken>``.
+    """
+    pp = data.get("props", {})
+    pp = pp.get("pageProps", {}) if isinstance(pp, dict) else {}
+    video = pp.get("video") if isinstance(pp, dict) else None
+    if not isinstance(video, dict):
+        return None
+    playback_id = video.get("playbackId")
+    if not playback_id:
+        return None
+    url = f"https://stream.mux.com/{playback_id}.m3u8"
+    token = video.get("playbackToken")
+    if token:
+        url += f"?token={token}"
+    return VideoRef(provider="mux", url=url,
+                    provider_id=video.get("id") or playback_id, raw=playback_id)
+
+
 def resolve_video(lesson_raw: Optional[dict]) -> Optional[VideoRef]:
     """Return a VideoRef for the lesson, or None if it has no video."""
     if not isinstance(lesson_raw, dict):

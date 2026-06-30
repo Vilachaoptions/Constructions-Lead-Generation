@@ -231,20 +231,33 @@ def _run(settings: Settings) -> int:
 
 def _process_lesson(lesson, settings, fetcher, media_dir, cookie_file,
                     nd, notes_mod, resolve_video, transcript_pipeline) -> None:
+    from .video.resolver import mux_from_pageprops
+
     notes_html, notes_md = notes_mod.extract_notes(lesson.raw)
     video = resolve_video(lesson.raw)
 
-    # Hydrate from the lesson deep-link if the course payload lacked notes/video.
-    if notes_md is None and video is None:
+    metadata = lesson.raw.get("metadata", {}) if isinstance(lesson.raw, dict) else {}
+    has_video_id = isinstance(metadata, dict) and bool(metadata.get("videoId"))
+
+    # Hydrate from the lesson deep-link when the course payload is missing notes
+    # or video, or when the lesson uses a Skool-native video (videoId) whose
+    # signed playback token only appears on the lesson page (pageProps.video).
+    if notes_md is None or video is None or has_video_id:
         html = fetcher.fetch_lesson(settings.classroom_url, lesson.id)
         data = nd.extract_next_data(html)
         for node in nd.walk(data, lambda n: isinstance(n, dict)
                             and str(n.get("id")) == lesson.id
                             and isinstance(n.get("metadata"), dict)):
             lesson.raw = node
-            notes_html, notes_md = notes_mod.extract_notes(node)
-            video = resolve_video(node)
+            h2, md2 = notes_mod.extract_notes(node)
+            notes_html = notes_html or h2
+            notes_md = notes_md or md2
+            if video is None:
+                video = resolve_video(node)
             break
+        # Skool-native (Mux) video: build the signed HLS URL from pageProps.video.
+        if video is None:
+            video = mux_from_pageprops(data)
 
     lesson.notes_html = notes_html
     lesson.notes_markdown = notes_md

@@ -3,7 +3,8 @@ from pathlib import Path
 from skool_extractor.parse import next_data as nd
 from skool_extractor.parse import notes as notes_mod
 from skool_extractor.parse.tree_builder import build_course
-from skool_extractor.video.resolver import detect_provider, resolve_video
+from skool_extractor.video.resolver import (detect_provider, mux_from_pageprops,
+                                            resolve_video)
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 
@@ -64,6 +65,20 @@ def test_resolve_video_from_json_list():
     video = resolve_video(_lessons()["lesson-2"].raw)
     assert video.provider == "vimeo"
     assert video.url == "https://vimeo.com/123456789"
+
+
+def test_mux_from_pageprops():
+    data = {"props": {"pageProps": {"video": {
+        "id": "vid1", "playbackId": "PB123", "playbackToken": "JWT.abc",
+        "status": "ready"}}}}
+    ref = mux_from_pageprops(data)
+    assert ref.provider == "mux"
+    assert ref.url == "https://stream.mux.com/PB123.m3u8?token=JWT.abc"
+    assert ref.provider_id == "vid1"
+
+
+def test_mux_from_pageprops_absent():
+    assert mux_from_pageprops({"props": {"pageProps": {"video": None}}}) is None
 
 
 def test_resolve_loom_video():
