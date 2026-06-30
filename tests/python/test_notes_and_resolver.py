@@ -33,6 +33,19 @@ def test_notes_includes_resources():
     assert "[Template](https://ex.com/t)" in md
 
 
+def test_skool_v2_richtext_desc():
+    # Real Skool format: "[v2]" prefix + ProseMirror nodes with link marks.
+    node = {"metadata": {"title": "/hook-generator", "resources": "[]", "desc":
+        '[v2][{"type":"paragraph","content":[{"type":"text","text":"(VIDEO COMING SOON)"}]},'
+        '{"type":"paragraph","content":[{"type":"text","marks":[{"type":"link","attrs":'
+        '{"href":"https://drive.google.com/file/d/ABC/view"}}],"text":"Get the files"}]}]'}}
+    _, md = notes_mod.extract_notes(node)
+    assert "(VIDEO COMING SOON)" in md
+    assert "[Get the files](https://drive.google.com/file/d/ABC/view)" in md
+    assert "[v2]" not in md          # the version prefix must be stripped
+    assert "{" not in md             # no raw JSON leaks through
+
+
 def test_detect_provider():
     assert detect_provider("https://youtu.be/abc") == "youtube"
     assert detect_provider("https://vimeo.com/1") == "vimeo"
