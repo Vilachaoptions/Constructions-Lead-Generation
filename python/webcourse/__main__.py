@@ -45,6 +45,19 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("url", help="A lesson URL that has a download button.")
     pr.add_argument("--session-dir", default="./.webcourse_session")
     pr.add_argument("--output-dir", default="./output")
+
+    n = sub.add_parser(
+        "notion",
+        help="Extract a public Notion site (all pages + databases) to Markdown/CSV.")
+    n.add_argument("url", help="A public *.notion.site page URL.")
+    n.add_argument("--output-dir", default="./output")
+    n.add_argument("--max-pages", type=int, default=2000,
+                   help="Safety cap on how many pages to crawl (default 2000).")
+    n.add_argument("--pause", type=float, default=0.2,
+                   help="Seconds to wait between API calls (politeness).")
+    n.add_argument("--debug", action="store_true",
+                   help="Also dump raw API JSON under _raw/ for diagnosis.")
+    n.add_argument("--verbose", "-v", action="store_true")
     return p
 
 
@@ -59,6 +72,9 @@ def main(argv=None) -> int:
     if args.command == "probe":
         from .kajabi import run_probe
         return run_probe(args)
+    if args.command == "notion":
+        from .notion import run_notion
+        return run_notion(args)
     return 1
 
 
